@@ -3,6 +3,7 @@ library(shinyapps)
 library(stringr)
 library(tm)
 library(plyr)
+library(RCurl)
 ### make shiny max request size 30MB
 options(stringsAsFactors=FALSE)
 
@@ -55,6 +56,63 @@ shinyServer(function(input, output, session) {
     }
 #     message("outhere")
     dat = end
+
+# mystr = c('<a href="http://example.com/link-to-your-event" class="addthisevent">Add to Calendar<span class="_start">%s %s</span>  <span class="_end">%s %s</span>  <span class="_zonecode">15</span>    <span class="_summary">%s </span> <span class="_description">%s</span>  <span class="_location">%s</span>  <span class="_all_day_event">false</span>  <span class="_date_format">MM/DD/YYYY</span></a>')
+mystr = c('<a href="%s" target="Google Calendar" rel="nofollow">Add to my Google calendar</a>')
+myurl = paste0('http://www.google.com/calendar/event?action=TEMPLATE&',
+'text=%s&', 
+"dates=%sT%sZ/%sT%sZ&",
+"details=%s&",
+"location=%s&",
+"trp=false&",
+"sprop=&sprop=name:")
+
+
+nc = nchar(dat$time)
+dat$ttime = dat$time
+dat$ttime[nc == 4] = paste0("0", dat$ttime[nc == 4])
+dat$ttime = paste0(dat$ttime, ":00")
+dat$dday = dat$day
+dat$dday[grepl("Sunday", dat$dday)] = "03/16/2014"
+dat$dday[grepl("Monday", dat$dday)] = "03/17/2014"
+dat$dday[grepl("Tuesday", dat$dday)] = "03/18/2014"
+dat$dday[grepl("Wednesday", dat$dday)] = "03/19/2014"
+dat$ntime = as.numeric(gsub(":", "", dat$time))
+dat$ntime[grepl("Sunday", dat$day)] =  dat$ntime[grepl("Sunday", dat$day)] + 1200
+dat$ntime[!grepl("Sunday", dat$day) & dat$ntime < 800] =  
+  dat$ntime[!grepl("Sunday", dat$day) & dat$ntime < 800] + 1200
+dat$next.time = dat$ntime + 30
+dat$next.time[grepl("contributed", dat$sessname)] = dat$ntime[grepl("contributed", dat$sessname)] + 15
+dat$next.time[grepl("poster", dat$sessname)] = dat$ntime[grepl("poster", dat$sessname)] + 300
+
+dat$hr = floor(dat$next.time/ 100) +4
+dat$min = dat$next.time %% 100
+overhr =  dat$min >= 60
+dat$min[overhr] = dat$min[overhr] - 60
+dat$hr[overhr] = dat$hr[overhr] + 1
+dat$next.time = paste0(sprintf("%02d", dat$hr), ":", sprintf("%02d", dat$min), ":00")
+dat$hr = floor(dat$ntime/ 100) + 4
+dat$min = dat$ntime %% 100
+overhr =  dat$min >= 60
+dat$min[overhr] = dat$min[overhr] - 60
+dat$hr[overhr] = dat$hr[overhr] + 1
+dat$ttime = paste0(sprintf("%02d", dat$hr), ":", sprintf("%02d", dat$min), ":00")
+
+dat$ev = sprintf(mystr, dat$dday, dat$ttime, dat$dday, 
+                 dat$next.time, dat$sessname, dat$whole, dat$where)
+dat$date = gsub("(.*)/(.*)/(.*)", "\\3\\2\\1", dat$dday)
+dat$ev2 = sprintf(myurl, dat$whole, 
+                  dat$date, gsub(":", "", dat$ttime), 
+                  dat$date, gsub(":", "", dat$next.time),
+                  dat$whole, dat$where)
+dat$ev = sprintf(mystr, dat$ev2)
+dat$ev2 = NULL
+
+
+  
+# dat$ev = '<a href="google.com"> goog</a>'
+# dat$ev = curlEscape(dat$url)
+
     message(sess)
     if (sess != "All") {
       print(head(dat$sessname))
@@ -77,13 +135,21 @@ shinyServer(function(input, output, session) {
       print(sum(g))
       dat = dat[g, ]
     }
-    #     paste0("Frequency of for ", sess, " for ", day))    
+#     paste0("Frequency of for ", sess, " for ", day))    
 #     Encoding(dat$sessname) = "latin1"
 #     dat$sessname = iconv(dat$sessname, "latin1", "UTF-8")
     message("printer")
+#     N = nrow(dat)
+#     add.to.row = vector(mode="list", length=2)
+#     names(add.to.row) = c("pos", "command")
+#     add.to.row$pos = list()
+#     for (irow in seq(N)) add.to.row$pos[[irow]] = irow
+#     add.to.row$command = dat$ev
+#     add.to.row <<- add.to.row
 
-    dat = dat[, c("day", "sessname", "whole", "where", "time")]
-    colnames(dat) = c("Day", "Session Name", "Title", "Location", "Time")
+    dat = dat[, c("day", "sessname", "whole", "where", "time", "ev")]
+    colnames(dat) = c("Day", "Session Name", "Title", "Location", 
+                      "Time", "Add")
 #     dat = dat[, c("day", "time")]
 #     message(dim(dat)[2])
     if(dim(dat)[1] != 0){
@@ -95,8 +161,10 @@ shinyServer(function(input, output, session) {
 
   output$outtab = renderTable({
     x = get.dat()
-    return(x)
-  }, include.rownames=FALSE)
+#     x = xtable(x, type="html", include.rownames=FALSE, 
+#                sanitize.text.function = force)
+    x
+  }, include.rownames=FALSE, sanitize.text.function=`(`)
 
 
 output$dlcsv <- downloadHandler(

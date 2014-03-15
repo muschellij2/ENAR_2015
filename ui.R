@@ -10,6 +10,8 @@ shinyUI(pageWithSidebar(
   sidebarPanel(
 #     uiOutput("day"),
 #     uiOutput("sess"),
+    HTML('<!-- AddThisEvent -->
+<script type="text/javascript" src="http://js.addthisevent.com/atemay.js"></script>'),
     selectInput("drop_day", "Day:",
                 choices= day, selected=day[1]),
     selectInput("drop_sess", "Session:",
