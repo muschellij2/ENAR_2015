@@ -2,8 +2,10 @@ library(shinyapps)
 load(file="ENAR_2014.Rda")
 days = unique(end$day)  
 sess = unique(end$sessname)
+time = as.character(sort(unique(end$est.time)))
 day = c("All", days)
 sess = c("All", sess)
+time = c("All", time)
 
 shinyUI(pageWithSidebar(
   headerPanel("ENAR 2014 searcher"),
@@ -14,6 +16,8 @@ shinyUI(pageWithSidebar(
 <script type="text/javascript" src="http://js.addthisevent.com/atemay.js"></script>'),
     selectInput("drop_day", "Day:",
                 choices= day, selected=day[1]),
+    selectInput("drop_time", "Time:",
+                choices= time, selected=time[1]),   
     selectInput("drop_sess", "Session:",
                 choices= sess, selected=sess[1]),  
     textInput("search", "Search Criteria", ""),

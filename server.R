@@ -18,10 +18,12 @@ shinyServer(function(input, output, session) {
   extract.data = reactive({
     days = unique(end$day)  
     sess = unique(end$sessname)
+    time = as.character(sort(unique(end$est.time)))
     days = c("All", days)
     sess = c("All", sess)
-#     message("extract")
-    return(list(day=days, df=end, sess=sess))
+    time = c("All", time)
+    #     message("extract")
+    return(list(day=days, df=end, sess=sess, time=time))
   })
 
 
@@ -35,6 +37,15 @@ shinyServer(function(input, output, session) {
                 choices= day, selected=day[1])
   })  
 	
+  output$time <- renderUI({
+    ed = extract.data()
+    day = ed$time
+    #     message("drop_inst")
+    #     print(head(day))
+    selectInput("drop_time", "Time:",
+                choices= time, selected=time[1])
+  })  
+
   # Partial example
   output$sess <- renderUI({
     ed = extract.data()
@@ -48,7 +59,8 @@ shinyServer(function(input, output, session) {
   get.dat = reactive({
     sess = input$drop_sess
     day = input$drop_day
-#     message("inhere")
+    est.time = input$drop_time
+    #     message("inhere")
 #     message(names(input))
 #     message("crap")
     if(is.null(day) | is.null(sess)){
@@ -68,39 +80,9 @@ myurl = paste0('http://www.google.com/calendar/event?action=TEMPLATE&',
 "sprop=&sprop=name:")
 
 
-nc = nchar(dat$time)
-dat$ttime = dat$time
-dat$ttime[nc == 4] = paste0("0", dat$ttime[nc == 4])
-dat$ttime = paste0(dat$ttime, ":00")
-dat$dday = dat$day
-dat$dday[grepl("Sunday", dat$dday)] = "03/16/2014"
-dat$dday[grepl("Monday", dat$dday)] = "03/17/2014"
-dat$dday[grepl("Tuesday", dat$dday)] = "03/18/2014"
-dat$dday[grepl("Wednesday", dat$dday)] = "03/19/2014"
-dat$ntime = as.numeric(gsub(":", "", dat$time))
-dat$ntime[grepl("Sunday", dat$day)] =  dat$ntime[grepl("Sunday", dat$day)] + 1200
-dat$ntime[!grepl("Sunday", dat$day) & dat$ntime < 800] =  
-  dat$ntime[!grepl("Sunday", dat$day) & dat$ntime < 800] + 1200
-dat$next.time = dat$ntime + 30
-dat$next.time[grepl("contributed", dat$sessname)] = dat$ntime[grepl("contributed", dat$sessname)] + 15
-dat$next.time[grepl("poster", dat$sessname)] = dat$ntime[grepl("poster", dat$sessname)] + 300
-
-dat$hr = floor(dat$next.time/ 100) +4
-dat$min = dat$next.time %% 100
-overhr =  dat$min >= 60
-dat$min[overhr] = dat$min[overhr] - 60
-dat$hr[overhr] = dat$hr[overhr] + 1
-dat$next.time = paste0(sprintf("%02d", dat$hr), ":", sprintf("%02d", dat$min), ":00")
-dat$hr = floor(dat$ntime/ 100) + 4
-dat$min = dat$ntime %% 100
-overhr =  dat$min >= 60
-dat$min[overhr] = dat$min[overhr] - 60
-dat$hr[overhr] = dat$hr[overhr] + 1
-dat$ttime = paste0(sprintf("%02d", dat$hr), ":", sprintf("%02d", dat$min), ":00")
-
 dat$ev = sprintf(mystr, dat$dday, dat$ttime, dat$dday, 
                  dat$next.time, dat$sessname, dat$whole, dat$where)
-dat$date = gsub("(.*)/(.*)/(.*)", "\\3\\2\\1", dat$dday)
+dat$date = gsub("(.*)/(.*)/(.*)", "\\3\\1\\2", dat$dday)
 dat$ev2 = sprintf(myurl, dat$whole, 
                   dat$date, gsub(":", "", dat$ttime), 
                   dat$date, gsub(":", "", dat$next.time),
@@ -114,6 +96,14 @@ dat$ev2 = NULL
 # dat$ev = curlEscape(dat$url)
 
     message(sess)
+    if (est.time != "All") {
+      message(est.time)
+      print(head(dat$est.time))
+      dat = dat[ dat$est.time %in% est.time, ]
+    } else {
+      message("in sess all")
+      est.time = paste0(est.time, " Times")
+    }
     if (sess != "All") {
       print(head(dat$sessname))
       dat = dat[ dat$sessname %in% sess, ]
