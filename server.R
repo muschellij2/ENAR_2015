@@ -165,6 +165,9 @@ output$dlcsv <- downloadHandler(
   },
   content = function(file) {
     dat = get.dat()
+    cn = colnames(dat)
+    cn = cn[ !(cn%in% "Add")]
+    dat = dat[,cn]
     write.csv(dat, file, row.names=FALSE)
   }
 )
